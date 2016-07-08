@@ -160,135 +160,134 @@
       </div>
     </paper-dialog>
 
-    <paper-toast id="toast"></paper-toast>
-
     <oc-resthook-api id="resthookApi"></oc-resthook-api>
+
   </template>
 
   <script>
-      Polymer({
-        is: 'oc-resthooks-view',
-        behaviors: [OC.Behaviours.ApiConsumer],
+    Polymer({
+      is: 'oc-resthooks-view',
+      behaviors: [OC.Behaviours.ApiConsumer],
 
-        properties: {
-          organisationId: Number,
-          eventTypes: Array,
-          subscriptions: Array,
-          editingSubscription: Object
-        },
+      properties: {
+        organisationId: Number,
+        eventTypes: Array,
+        subscriptions: Array,
+        editingSubscription: Object
+      },
 
-        listeners: {
-          'iron-overlay-closed': '_whenTestResthookDialogClosed'
-        },
+      listeners: {
+        'iron-overlay-closed': '_whenTestResthookDialogClosed'
+      },
 
-        load: function() {
-          this._loadSubscriptions();
-          this._loadEventTypes();
-        },
+      load: function() {
+        this._loadSubscriptions();
+        this._loadEventTypes();
+      },
 
-        _loadSubscriptions: function() {
-          this.$.resthookApi.getSubscriptions(this.organisationId)
-                  .then(this._setPropertyResponseResults.bind(this, 'subscriptions'))
-                  .catch(this.$.toast.show.bind(this.$.toast, 'Failed to fetch resthooks'));
-        },
-        _loadEventTypes: function() {
-          this.$.resthookApi.getEventTypes(this.organisationId)
-                  .then(this._setPropertyResponseResults.bind(this, 'eventTypes'))
-                  .catch(this.$.toast.show.bind(this.$.toast, 'Failed to fetch resthook event types'));
-        },
+      _loadSubscriptions: function() {
+        this.$.resthookApi.getSubscriptions(this.organisationId)
+                .then(this._setPropertyResponseResults.bind(this, 'subscriptions'))
+                .catch(this.fire.bind(this, 'toast', 'Failed to fetch resthooks'));
+      },
+      _loadEventTypes: function() {
+        this.$.resthookApi.getEventTypes(this.organisationId)
+                .then(this._setPropertyResponseResults.bind(this, 'eventTypes'))
+                .catch(this.fire.bind(this, 'toast', 'Failed to fetch resthook event types'));
+      },
 
-        _onAddBtnClicked: function() {
-          this.editingSubscription = {url: '', eventType: ''};
-          this._openSubscriptionForm();
-        },
+      _onAddBtnClicked: function() {
+        this.editingSubscription = {url: '', eventType: ''};
+        this._openSubscriptionForm();
+      },
 
-        _openSubscriptionForm: function() {
-          this.$.resthookListContainer.hide();
-          this.$.resthookFormContainer.show();
-        },
-        _closeSubscriptionForm: function() {
-          this.$.resthookFormContainer.hide();
-          this.$.resthookListContainer.show();
-        },
+      _openSubscriptionForm: function() {
+        this.$.resthookListContainer.hide();
+        this.$.resthookFormContainer.show();
+      },
+      _closeSubscriptionForm: function() {
+        this.$.resthookFormContainer.hide();
+        this.$.resthookListContainer.show();
+      },
 
-        _saveSubscription: function() {
-          if (!this.$.resthookForm.validate()) {
-            return;
-          }
-
-          this._closeSubscriptionForm();
-
-          if ('id' in this.editingSubscription) {
-            this.$.resthookApi.updateSubscription(this.organisationId, this.editingSubscription)
-                    .then(this.$.toast.show.bind(this.$.toast, 'Resthook updated'))
-                    .then(this._loadSubscriptions.bind(this))
-                    .catch(this.$.toast.show.bind(this.$.toast, 'Failed to update resthook'));
-          }
-          else {
-            this.$.resthookApi.createSubscription(this.organisationId, this.editingSubscription)
-                    .then(this.$.toast.show.bind(this.$.toast, 'New resthook added'))
-                    .then(this._loadSubscriptions.bind(this))
-                    .catch(this.$.toast.show.bind(this.$.toast, 'Failed to create resthook'));
-          }
-        },
-
-        _toggleSubscriptionEnabled: function(event) {
-          var verb = event.target.checked ? 'enable' : 'disable';
-          this.$.resthookApi.toggleResthookEnabled(this.organisationId, event.model.subscription.id, event.target.checked)
-                  .catch(this._handleToggleSubscriptionEnabledFailure.bind(this, verb, event.target));
-        },
-        _handleToggleSubscriptionEnabledFailure: function(verb, toggleBtn) {
-          this.$.toast.show('Failed to ' + verb + ' resthook');
-          toggleBtn.checked = !toggleBtn.checked;
-        },
-
-        _whenDeleteSubscriptionBtnClicked: function(event) {
-          this.$.resthookApi.deleteSubscription(this.organisationId, event.model.subscription.id)
-                  .then(this.$.toast.show.bind(this.$.toast, 'Resthook deleted'))
-                  .then(this._loadSubscriptions.bind(this))
-                  .catch(this.$.toast.show.bind(this.$.toast, 'Failed to delete resthook'));
-        },
-
-        _whenEditSubscriptionBtnClicked: function(event) {
-          this.editingSubscription = {
-            id: event.model.subscription.id,
-            url: event.model.subscription.url,
-            eventType: event.model.subscription.eventType
-          };
-          this._openSubscriptionForm();
-        },
-
-        _whenTestSubscriptionBtnClicked: function(event) {
-          this.$.resthookApi.testResthook(this.organisationId, event.model.subscription.id)
-                  .then(this._setPropertyResponse.bind(this, 'resthookTestResult'))
-                  .then(this.$.testDialog.open.bind(this.$.testDialog))
-                  .catch(this.$.toast.show.bind(this.$.toast, 'Failed to test resthook'));
-        },
-        _whenTestResthookDialogClosed: function() {
-          this.resthookTestResult = null;
-        },
-
-        _getResthookFormHeading: function(editingSubscription) {
-          return 'id' in editingSubscription ? 'Edit Resthook' : 'New Resthook';
-        },
-
-        _isEmpty: function(data) {
-          return data && data.length === 0;
-        },
-
-        testResultCodeClasses: function(code) {
-          if (code < 400) {
-            return 'label label-success';
-          }
-          else if (code < 500) {
-            return 'label label-warning';
-          }
-          else {
-            return 'label label-danger';
-          }
+      _saveSubscription: function() {
+        if (!this.$.resthookForm.validate()) {
+          return;
         }
 
-      });
+        this._closeSubscriptionForm();
+
+        if ('id' in this.editingSubscription) {
+          this.$.resthookApi.updateSubscription(this.organisationId, this.editingSubscription)
+                  .then(this.fire.bind(this, 'toast', 'Resthook updated'))
+                  .then(this._loadSubscriptions.bind(this))
+                  .catch(this.fire.bind(this, 'toast', 'Failed to update resthook'));
+        }
+        else {
+          this.$.resthookApi.createSubscription(this.organisationId, this.editingSubscription)
+                  .then(this.fire.bind(this, 'toast', 'New resthook added'))
+                  .then(this._loadSubscriptions.bind(this))
+                  .catch(this.fire.bind(this, 'toast', 'Failed to create resthook'));
+        }
+      },
+
+      _toggleSubscriptionEnabled: function(event) {
+        var verb = event.target.checked ? 'enable' : 'disable';
+        this.$.resthookApi.toggleResthookEnabled(this.organisationId, event.model.subscription.id, event.target.checked)
+                .catch(this._handleToggleSubscriptionEnabledFailure.bind(this, verb, event.target));
+      },
+      _handleToggleSubscriptionEnabledFailure: function(verb, toggleBtn) {
+        this.fire('toast', 'Failed to ' + verb + ' resthook');
+        toggleBtn.checked = !toggleBtn.checked;
+      },
+
+      _whenDeleteSubscriptionBtnClicked: function(event) {
+        this.$.resthookApi.deleteSubscription(this.organisationId, event.model.subscription.id)
+                .then(this.fire.bind(this, 'toast', 'Resthook deleted'))
+                .then(this._loadSubscriptions.bind(this))
+                .catch(this.fire.bind(this, 'toast', 'Failed to delete resthook'));
+      },
+
+      _whenEditSubscriptionBtnClicked: function(event) {
+        this.editingSubscription = {
+          id: event.model.subscription.id,
+          url: event.model.subscription.url,
+          eventType: event.model.subscription.eventType
+        };
+        this._openSubscriptionForm();
+      },
+
+      _whenTestSubscriptionBtnClicked: function(event) {
+        this.$.resthookApi.testResthook(this.organisationId, event.model.subscription.id)
+                .then(this._setPropertyResponse.bind(this, 'resthookTestResult'))
+                .then(this.$.testDialog.open.bind(this.$.testDialog))
+                .catch(this.fire.bind(this, 'toast', 'Failed to test resthook'));
+      },
+      _whenTestResthookDialogClosed: function() {
+        this.resthookTestResult = null;
+      },
+
+      _getResthookFormHeading: function(editingSubscription) {
+        return 'id' in editingSubscription ? 'Edit Resthook' : 'New Resthook';
+      },
+
+      _isEmpty: function(data) {
+        return data && data.length === 0;
+      },
+
+      testResultCodeClasses: function(code) {
+        if (code < 400) {
+          return 'label label-success';
+        }
+        else if (code < 500) {
+          return 'label label-warning';
+        }
+        else {
+          return 'label label-danger';
+        }
+      }
+
+    });
   </script>
 
 </dom-module>
