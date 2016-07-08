@@ -1,0 +1,294 @@
+<link rel="import" href="../polymer/polymer.html">
+
+<link rel="import" href="../iron-icons/iron-icons.html">
+<link rel="import" href="../iron-flex-layout/iron-flex-layout.html">
+<link rel="import" href="../iron-collapse/iron-collapse.html">
+<link rel="import" href="../iron-form/iron-form.html">
+
+<link rel="import" href="../paper-dialog-scrollable/paper-dialog-scrollable.html">
+<link rel="import" href="../paper-dropdown-menu/paper-dropdown-menu.html">
+<link rel="import" href="../paper-toggle-button/paper-toggle-button.html">
+<link rel="import" href="../paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../paper-dialog/paper-dialog.html">
+<link rel="import" href="../paper-button/paper-button.html">
+<link rel="import" href="../paper-input/paper-input.html">
+<link rel="import" href="../paper-card/paper-card.html">
+<link rel="import" href="../paper-menu/paper-menu.html">
+<link rel="import" href="../paper-item/paper-item.html">
+
+<link rel="import" href="../oc-core-utils/oc-api-consumer-behaviour.html">
+<link rel="import" href="../oc-resthook-api/oc-resthook-api.html">
+<link rel="import" href="./error-loading.html">
+<link rel="import" href="./table-styles.html">
+
+<dom-module id="oc-resthooks-view">
+
+  <style include="table-styles"></style>
+  <style>
+    :host {
+      display: block;
+      width: 100%;
+    }
+    paper-card {
+      width: 100%;
+    }
+    #resthookListContainer .card-content {
+      @apply(--layout-horizontal);
+      @apply(--layout-start);
+    }
+    #resthookListContainer .card-content p {
+      @apply(--layout-flex);
+      margin: 0 1em 0 0;
+    }
+    #createBtn {
+      color: var(--text-primary-color);
+      background-color: var(--paper-green-400);
+    }
+
+    #resthookFormContainer .save {
+      background-color: var(--default-primary-color);
+      color: var(--text-primary-color);
+    }
+    #resthookFormContainer paper-icon-button {
+      margin-top: 1em;
+    }
+    #resthookFormContainer paper-button {
+      margin: 1em 0;
+      background-color: var(--paper-green-400);
+      color: var(--text-primary-color);
+    }
+    #resthookForm paper-dropdown-menu {
+      width: 16em;
+    }
+    #testDialog h4 > span.label {
+      margin-left: 0.6em;
+    }
+  </style>
+
+  <template>
+
+    <iron-collapse id="resthookListContainer" opened>
+      <paper-card heading="Resthooks">
+        <div class="card-content">
+          <p>
+            Resthooks allow external services to be notified when certain events happen within your organisation.
+            When the specified events happen, we'll send a POST request to each of the URLs you provide.
+          </p>
+          <paper-button id="createBtn" icon="icons:add" raised on-tap="_onAddBtnClicked">Add Resthook</paper-button>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Url</th>
+            <th>Event</th>
+            <th width="92">Enabled</th>
+            <th width="152"></th>
+          </tr></thead>
+          <tbody>
+          <template is="dom-repeat" items="[[ subscriptions ]]" as="subscription">
+            <tr>
+              <td>[[ subscription.url ]]</td>
+              <td>[[ subscription.eventType ]]</td>
+              <td>
+                <paper-toggle-button
+                        checked$="[[ subscription.enabled ]]"
+                        on-change="_toggleSubscriptionEnabled"
+                ></paper-toggle-button>
+              </td>
+              <td>
+                <paper-icon-button
+                        icon="icons:launch"
+                        on-tap="_whenTestSubscriptionBtnClicked"
+                ></paper-icon-button>
+                <paper-icon-button
+                        icon="icons:create"
+                        on-tap="_whenEditSubscriptionBtnClicked"
+                ></paper-icon-button>
+                <paper-icon-button
+                        icon="icons:delete"
+                        on-tap="_whenDeleteSubscriptionBtnClicked"
+                ></paper-icon-button>
+              </td>
+            </tr>
+          </template>
+          </tbody>
+        </table>
+        <error-loading
+                show-if="[[ _isEmpty(subscriptions) ]]"
+                message="No resthooks found, you can add some now"
+        ></error-loading>
+      </paper-card>
+    </iron-collapse>
+
+    <iron-collapse id="resthookFormContainer">
+      <paper-card heading="[[ _getResthookFormHeading(editingSubscription) ]]">
+        <div class="card-content">
+          <p>We'll send a POST request to the URL below with details of the subscribed event.</p>
+          <form is="iron-form" id="resthookForm">
+            <paper-input label="Payload Url" value="{{ editingSubscription.url }}" required></paper-input>
+            <paper-dropdown-menu label="Event Type" required horizontal-align="left">
+              <paper-menu class="dropdown-content" attr-for-selected="value" selected="{{ editingSubscription.eventType }}">
+                <template is="dom-repeat" items="[[ eventTypes ]]" as="type">
+                  <paper-item value="[[ type.value ]]">[[ type.value ]]</paper-item>
+                </template>
+              </paper-menu>
+            </paper-dropdown-menu>
+            <div>
+              <paper-icon-button icon="icons:save" class="save" on-tap="_saveSubscription"></paper-icon-button>
+              <paper-icon-button icon="icons:clear" on-tap="_closeSubscriptionForm"></paper-icon-button>
+            </div>
+          </form>
+        </div>
+      </paper-card>
+    </iron-collapse>
+
+    <paper-dialog id="testDialog">
+      <paper-dialog-scrollable>
+        <h4>
+          Response
+          <span class$="[[ testResultCodeClasses(resthookTestResult.response.status) ]]">[[ resthookTestResult.response.status ]]</span>
+        </h4>
+        <h4>Headers</h4>
+        <pre><template is="dom-repeat" items="[[ resthookTestResult.response.headers ]]" as="header"
+        ><strong>[[ header.name ]]</strong>: <span>[[ header.value ]]</span><br></template></pre>
+        <h4>Body</h4>
+        <pre>[[ resthookTestResult.response.body ]]</pre>
+        <h4>Request</h4>
+        <pre>[[ resthookTestResult.request.body ]]</pre>
+      </paper-dialog-scrollable>
+      <div class="buttons">
+        <paper-button dialog-confirm>Close</paper-button>
+      </div>
+    </paper-dialog>
+
+    <paper-toast id="toast"></paper-toast>
+
+    <oc-resthook-api id="resthookApi"></oc-resthook-api>
+  </template>
+
+  <script>
+      Polymer({
+        is: 'oc-resthooks-view',
+        behaviors: [OC.Behaviours.ApiConsumer],
+
+        properties: {
+          organisationId: Number,
+          eventTypes: Array,
+          subscriptions: Array,
+          editingSubscription: Object
+        },
+
+        listeners: {
+          'iron-overlay-closed': '_whenTestResthookDialogClosed'
+        },
+
+        load: function() {
+          this._loadSubscriptions();
+          this._loadEventTypes();
+        },
+
+        _loadSubscriptions: function() {
+          this.$.resthookApi.getSubscriptions(this.organisationId)
+                  .then(this._setPropertyResponseResults.bind(this, 'subscriptions'))
+                  .catch(this.$.toast.show.bind(this.$.toast, 'Failed to fetch resthooks'));
+        },
+        _loadEventTypes: function() {
+          this.$.resthookApi.getEventTypes(this.organisationId)
+                  .then(this._setPropertyResponseResults.bind(this, 'eventTypes'))
+                  .catch(this.$.toast.show.bind(this.$.toast, 'Failed to fetch resthook event types'));
+        },
+
+        _onAddBtnClicked: function() {
+          this.editingSubscription = {url: '', eventType: ''};
+          this._openSubscriptionForm();
+        },
+
+        _openSubscriptionForm: function() {
+          this.$.resthookListContainer.hide();
+          this.$.resthookFormContainer.show();
+        },
+        _closeSubscriptionForm: function() {
+          this.$.resthookFormContainer.hide();
+          this.$.resthookListContainer.show();
+        },
+
+        _saveSubscription: function() {
+          if (!this.$.resthookForm.validate()) {
+            return;
+          }
+
+          this._closeSubscriptionForm();
+
+          if ('id' in this.editingSubscription) {
+            this.$.resthookApi.updateSubscription(this.organisationId, this.editingSubscription)
+                    .then(this.$.toast.show.bind(this.$.toast, 'Resthook updated'))
+                    .then(this._loadSubscriptions.bind(this))
+                    .catch(this.$.toast.show.bind(this.$.toast, 'Failed to update resthook'));
+          }
+          else {
+            this.$.resthookApi.createSubscription(this.organisationId, this.editingSubscription)
+                    .then(this.$.toast.show.bind(this.$.toast, 'New resthook added'))
+                    .then(this._loadSubscriptions.bind(this))
+                    .catch(this.$.toast.show.bind(this.$.toast, 'Failed to create resthook'));
+          }
+        },
+
+        _toggleSubscriptionEnabled: function(event) {
+          var verb = event.target.checked ? 'enable' : 'disable';
+          this.$.resthookApi.toggleResthookEnabled(this.organisationId, event.model.subscription.id, event.target.checked)
+                  .catch(this._handleToggleSubscriptionEnabledFailure.bind(this, verb, event.target));
+        },
+        _handleToggleSubscriptionEnabledFailure: function(verb, toggleBtn) {
+          this.$.toast.show('Failed to ' + verb + ' resthook');
+          toggleBtn.checked = !toggleBtn.checked;
+        },
+
+        _whenDeleteSubscriptionBtnClicked: function(event) {
+          this.$.resthookApi.deleteSubscription(this.organisationId, event.model.subscription.id)
+                  .then(this.$.toast.show.bind(this.$.toast, 'Resthook deleted'))
+                  .then(this._loadSubscriptions.bind(this))
+                  .catch(this.$.toast.show.bind(this.$.toast, 'Failed to delete resthook'));
+        },
+
+        _whenEditSubscriptionBtnClicked: function(event) {
+          this.editingSubscription = {
+            id: event.model.subscription.id,
+            url: event.model.subscription.url,
+            eventType: event.model.subscription.eventType
+          };
+          this._openSubscriptionForm();
+        },
+
+        _whenTestSubscriptionBtnClicked: function(event) {
+          this.$.resthookApi.testResthook(this.organisationId, event.model.subscription.id)
+                  .then(this._setPropertyResponse.bind(this, 'resthookTestResult'))
+                  .then(this.$.testDialog.open.bind(this.$.testDialog))
+                  .catch(this.$.toast.show.bind(this.$.toast, 'Failed to test resthook'));
+        },
+        _whenTestResthookDialogClosed: function() {
+          this.resthookTestResult = null;
+        },
+
+        _getResthookFormHeading: function(editingSubscription) {
+          return 'id' in editingSubscription ? 'Edit Resthook' : 'New Resthook';
+        },
+
+        _isEmpty: function(data) {
+          return data && data.length === 0;
+        },
+
+        testResultCodeClasses: function(code) {
+          if (code < 400) {
+            return 'label label-success';
+          }
+          else if (code < 500) {
+            return 'label label-warning';
+          }
+          else {
+            return 'label label-danger';
+          }
+        }
+
+      });
+  </script>
+
+</dom-module>

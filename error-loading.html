@@ -1,0 +1,49 @@
+
+<dom-module id="error-loading">
+
+    <style>
+        #loading-error {
+            text-align: center;
+            padding: 15px;
+            color: #727272;
+        }
+        #loading-error a {
+            display: block;
+            font-size: 1em;
+            font-weight: bold;
+        }
+    </style>
+
+    <template>
+        <div hidden$="[[ !showIf ]]" id="loading-error">
+            <span>[[ message ]]</span>
+            <template is="dom-if" if="[[ retryable ]]">
+                <a href="javascript:void(0);" on-click="onRetry">Retry</a>
+            </template>
+        </div>
+    </template>
+
+    <script>
+        (function () {
+            'use strict';
+
+            Polymer({
+                is: 'error-loading',
+
+                properties: {
+                    showIf: {
+                        type: Boolean,
+                        value: false,
+                    },
+                    message: String,
+                    retryable: Boolean
+                },
+
+                onRetry: function () {
+                    this.fire('retry');
+                }
+            });
+        })();
+    </script>
+
+</dom-module>

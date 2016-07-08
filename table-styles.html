@@ -1,0 +1,33 @@
+<dom-module id="table-styles">
+    <template>
+        <style>
+            * {
+                -webkit-box-sizing: border-box;
+                -moz-box-sizing: border-box;
+                box-sizing: border-box;
+            }
+            table {
+                width: 100%;
+                border-spacing: 0;
+                border-collapse: collapse;
+            }
+            th {
+                color: var(--secondary-text-color);
+                border: 0;
+                padding: 0.8em;
+                font-size: 1.1em;
+                font-weight: normal;
+                line-height: 1.4em;
+                box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06),
+                0 2px 0 rgba(0, 0, 0, 0.075),
+                0 3px 0 rgba(0, 0, 0, 0.05),
+                0 4px 0 rgba(0, 0, 0, 0.015);
+            }
+            td {
+                padding: 0.8em;
+                line-height: 1.4em;
+                border-bottom: 1px solid #DDDDDD;
+            }
+        </style>
+    </template>
+</dom-module>
